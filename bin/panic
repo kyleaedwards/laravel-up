@@ -1,0 +1,27 @@
+#!/bin/sh
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd .. && pwd )"
+
+echo "LaravelUp (PANIC MODE)"
+echo "v0.1.0"
+echo
+
+# Move aside project composer files
+mv "$DIR/composer.json" "$DIR/jsoncompsaved"
+mv "$DIR/composer.lock" "$DIR/lockcompsaved"
+cp "$DIR/artifacts/install-composer.json" "$DIR/composer.json"
+cp "$DIR/artifacts/install-composer.lock" "$DIR/composer.lock"
+
+# Install vendor components
+printf "Installing old vendor components..."
+"$DIR/bin/composer" install --quiet
+printf " \xE2\x9C\x94\xEF\xB8\x8E\n"
+
+# Move project composer files back
+rm "$DIR/composer.json"
+rm "$DIR/composer.lock"
+mv "$DIR/jsoncompsaved" "$DIR/composer.json"
+mv "$DIR/lockcompsaved" "$DIR/composer.lock"
+
+echo "Panic sequence complete, try running vagrant up/ssh/halt."
+echo

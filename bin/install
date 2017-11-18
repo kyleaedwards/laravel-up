@@ -1,0 +1,109 @@
+#!/bin/sh
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && cd .. && pwd )"
+HN="$1"
+
+echo "LaravelUp (Local Dev Environment)"
+echo "v0.1.0"
+echo
+
+# Sanitize project name
+printf "Validating project name..."
+if [ "$1" == "" ]; then
+  printf " \xE2\x9C\x98\n\nMust provide a project name as the first argument.\n\n"
+  exit 1
+else
+  HN="$1"
+  if echo "$HN" | grep -Eq "^[a-z]([a-z0-9_\.-]*[a-z0-9])?$"; then
+    printf " \xE2\x9C\x94\xEF\xB8\x8E\n"
+  else
+    printf " \xE2\x9C\x98\n\nInvalid project name format.\n\n"
+    exit 1
+  fi
+fi
+
+printf "Creating Homestead.yaml file..."
+sed "s:REPLACEME:$DIR:g" Homestead.config > Homestead.yaml
+sed -i "" "s:REPLACEHN:$HN:g" Homestead.yaml
+printf " \xE2\x9C\x94\xEF\xB8\x8E\n"
+
+# Move aside project composer files
+mv "$DIR/composer.json" "$DIR/jsoncompsaved"
+mv "$DIR/composer.lock" "$DIR/lockcompsaved"
+cp "$DIR/artifacts/install-composer.json" "$DIR/composer.json"
+cp "$DIR/artifacts/install-composer.lock" "$DIR/composer.lock"
+
+# Remove symlinked executables
+if [ "$DIR" != "" ]; then
+  printf "Removing symlinked executables if applicable..."
+  rm -rf "$DIR/vendor"
+  if [ -e "$DIR/bin/composer" ]; then
+    rm "$DIR/bin/composer"
+  fi
+  # rm "$DIR/bin/laravel"
+  # rm "$DIR/bin/homestead"
+  printf " \xE2\x9C\x94\xEF\xB8\x8E\n"
+fi
+
+# Load composer
+printf "Loading composer..."
+EXPECTED_SIGNATURE=$(curl -s https://composer.github.io/installer.sig)
+curl -s https://getcomposer.org/installer > composer-setup.php
+ACTUAL_SIGNATURE=$(shasum -a 384 composer-setup.php | awk '{ print $1 }')
+if [ "$EXPECTED_SIGNATURE" != "$ACTUAL_SIGNATURE" ]
+then
+  >&2 printf " \xE2\x9C\x98\n\nERROR: Invalid installer signature\n"
+  rm composer-setup.php
+  exit 1
+else
+  printf " \xE2\x9C\x94\xEF\xB8\x8E\n"
+fi
+
+# Install composer
+printf "Installing composer..."
+php composer-setup.php --quiet
+printf " \xE2\x9C\x94\xEF\xB8\x8E\n"
+
+# Cleanup and move composer to bin directory
+printf "Cleanup composer..."
+rm composer-setup.php
+mv composer.phar "$DIR/bin/composer"
+chmod a+x "$DIR/bin/composer"
+printf " \xE2\x9C\x94\xEF\xB8\x8E\n"
+
+# Install vendor components
+printf "Installing vendor components..."
+"$DIR/bin/composer" install --quiet
+printf " \xE2\x9C\x94\xEF\xB8\x8E\n"
+
+# Move project composer files back
+rm "$DIR/composer.json"
+rm "$DIR/composer.lock"
+mv "$DIR/jsoncompsaved" "$DIR/composer.json"
+mv "$DIR/lockcompsaved" "$DIR/composer.lock"
+
+# Symlink executables
+# NOTE: You'll probably want to use these solely through
+#       vagrant, otherwise if you're running PHP 7 locally
+#       feel free to uncomment and run using bin/*.
+# printf "Symlinking executables..."
+# ln -s "$DIR/vendor/bin/homestead" "$DIR/bin/homestead"
+# ln -s "$DIR/vendor/bin/laravel" "$DIR/bin/laravel"
+# printf " \xE2\x9C\x94\xEF\xB8\x8E\n\n"
+
+# Update /etc/hosts for new test URL
+printf "Updating /etc/hosts..."
+if grep -xq "^192\.168\.10\.10.*$HN\.local$" /etc/hosts; then
+  printf " \xE2\x9C\x94\xEF\xB8\x8E\n\n"
+else
+  sudo bash -c "echo '192.168.10.10                $HN.local' >> /etc/hosts"
+  printf " \xE2\x9C\x94\xEF\xB8\x8E\n\n"
+fi
+
+echo "LaravelUp instance $HN installed successfully."
+echo "Run the following:"
+echo "$ vagrant up && vagrant ssh"
+echo "When on the vagrant box run:"
+echo "$ cd code && composer install"
+echo "Then visit http://$HN.local to begin."
+echo

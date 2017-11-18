@@ -1,0 +1,8 @@
+{
+    "require": {
+        "laravel/installer": "^1.4"
+    },
+    "require-dev": {
+        "laravel/homestead": "^6.5"
+    }
+}
