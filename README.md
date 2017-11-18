@@ -1,5 +1,5 @@
 # LaravelUp
-Local Dev Environment
+Isolated Homestead/Laravel development environment
 
 ## Prerequisites
 
